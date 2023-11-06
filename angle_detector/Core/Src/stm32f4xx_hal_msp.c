@@ -108,9 +108,6 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
 
     /* Peripheral clock enable */
     __HAL_RCC_I2C1_CLK_ENABLE();
-    /* I2C1 interrupt Init */
-    HAL_NVIC_SetPriority(I2C1_EV_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
   /* USER CODE BEGIN I2C1_MspInit 1 */
 
   /* USER CODE END I2C1_MspInit 1 */
@@ -122,24 +119,16 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
   /* USER CODE END I2C2_MspInit 0 */
 
     __HAL_RCC_GPIOB_CLK_ENABLE();
-    __HAL_RCC_GPIOC_CLK_ENABLE();
     /**I2C2 GPIO Configuration
     PB10     ------> I2C2_SCL
-    PC12     ------> I2C2_SDA
+    PB3     ------> I2C2_SDA
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_10;
+    GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_3;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
     GPIO_InitStruct.Alternate = GPIO_AF4_I2C2;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-    GPIO_InitStruct.Pin = GPIO_PIN_12;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF4_I2C2;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
     /* Peripheral clock enable */
     __HAL_RCC_I2C2_CLK_ENABLE();
@@ -174,8 +163,6 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
 
     HAL_GPIO_DeInit(GPIOB, GPIO_PIN_7);
 
-    /* I2C1 interrupt DeInit */
-    HAL_NVIC_DisableIRQ(I2C1_EV_IRQn);
   /* USER CODE BEGIN I2C1_MspDeInit 1 */
 
   /* USER CODE END I2C1_MspDeInit 1 */
@@ -190,11 +177,11 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
 
     /**I2C2 GPIO Configuration
     PB10     ------> I2C2_SCL
-    PC12     ------> I2C2_SDA
+    PB3     ------> I2C2_SDA
     */
     HAL_GPIO_DeInit(GPIOB, GPIO_PIN_10);
 
-    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_12);
+    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_3);
 
   /* USER CODE BEGIN I2C2_MspDeInit 1 */
 

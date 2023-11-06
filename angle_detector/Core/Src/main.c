@@ -22,7 +22,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include "string.h"
+#include "queue.h"
+#include "mpu6050.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -32,7 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define GYRO_QUEUE_LEN 1
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -57,11 +60,11 @@ const osThreadAttr_t gyro_rx_attributes = {
 osThreadId_t oled_txHandle;
 const osThreadAttr_t oled_tx_attributes = {
   .name = "oled_tx",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityHigh,
 };
 /* USER CODE BEGIN PV */
-
+static xQueueHandle gyro_queue;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -114,7 +117,7 @@ int main(void)
   MX_I2C2_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  mpu6050_init();
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -134,6 +137,7 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
+  gyro_queue = xQueueCreate(GYRO_QUEUE_LEN, sizeof(gyro_accel_st));
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -223,7 +227,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 400000;
+  hi2c1.Init.ClockSpeed = 100000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
@@ -257,7 +261,7 @@ static void MX_I2C2_Init(void)
 
   /* USER CODE END I2C2_Init 1 */
   hi2c2.Instance = I2C2;
-  hi2c2.Init.ClockSpeed = 100000;
+  hi2c2.Init.ClockSpeed = 400000;
   hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c2.Init.OwnAddress1 = 0;
   hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
@@ -321,7 +325,6 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOC_CLK_ENABLE();
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -342,9 +345,32 @@ void start_gyro_rx(void *argument)
 {
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
-  for(;;)
-  {
+  // gyro_accel_st tx_st = {.x_angle=0xAAAAAAAA, .y_angle=0, .z_angle=0};
+  while(1){
+    // //if interrupt w new data store data
+    // //xqueueoverwrite
+    // if (xQueueSend(gyro_queue, (void *)&tx_st, 10) != pdTRUE){
+    //   //do something i guess
+    // }
     osDelay(1);
+
+    /*
+    i2c interrupt{
+      if val received give semaphore
+    }
+    if (take semaphore){
+      process
+      if queue not full {
+        add value
+      } else {
+        block till queue has spot
+      }
+    }
+
+    uint8_t StartMSG[] = "Starting I2C Scanning: \r\n";
+    HAL_UART_Transmit(&huart2, StartMSG, sizeof(StartMSG), 10000);
+
+    */
   }
   /* USER CODE END 5 */
 }
@@ -359,10 +385,30 @@ void start_gyro_rx(void *argument)
 void start_oled_tx(void *argument)
 {
   /* USER CODE BEGIN start_oled_tx */
+  volatile gyro_accel_st raw_data;
+  accel_reading_st angle_data;
   /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
+  while(1){
+    /*
+    60 times/secs
+      pop value
+      process
+      display
+    } else {
+      block
+    }
+    */
+    // if(gyro_queue != NULL ){
+    //   if (xQueueReceive(gyro_queue, (void *)&rcv_st, 10) == pdPASS) {
+        raw_data = read_gyro_data();
+        angle_data = return_angle(raw_data);
+        char x_str[7];
+        sprintf(x_str, "%.2f\n", angle_data.y_accel);
+        HAL_UART_Transmit(&huart2, x_str, sizeof(x_str), 10000);
+        // }
+    //   }
+    // }
+    osDelay(16);
   }
   /* USER CODE END start_oled_tx */
 }
