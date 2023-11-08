@@ -117,7 +117,6 @@ int main(void)
   MX_I2C2_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  mpu6050_init();
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -385,7 +384,8 @@ void start_gyro_rx(void *argument)
 void start_oled_tx(void *argument)
 {
   /* USER CODE BEGIN start_oled_tx */
-  volatile gyro_accel_st raw_data;
+  mpu6050 accel_gyro;
+  gyro_accel_st raw_data;
   accel_reading_st angle_data;
   /* Infinite loop */
   while(1){
@@ -398,16 +398,12 @@ void start_oled_tx(void *argument)
       block
     }
     */
-    // if(gyro_queue != NULL ){
-    //   if (xQueueReceive(gyro_queue, (void *)&rcv_st, 10) == pdPASS) {
-        raw_data = read_gyro_data();
-        angle_data = return_angle(raw_data);
-        char x_str[7];
-        sprintf(x_str, "%.2f\n", angle_data.y_accel);
-        HAL_UART_Transmit(&huart2, x_str, sizeof(x_str), 10000);
-        // }
-    //   }
-    // }
+    accel_gyro.read_gyro_data();
+    raw_data = accel_gyro.get_gyro_data();
+    angle_data = accel_gyro.return_angle(raw_data);
+    char x_str[7];
+    sprintf(x_str, "%.2f\n\r", angle_data.x_accel);
+    HAL_UART_Transmit(&huart2, (uint8_t*)x_str, sizeof(x_str), 10000);
     osDelay(16);
   }
   /* USER CODE END start_oled_tx */

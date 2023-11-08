@@ -28,23 +28,31 @@
 #define POWER_MGMT_1      0x6B    // Power management 1
 #define WHOAMI            0x75    //  ID reg
 
-typedef struct {
+struct gyro_accel_st{
   volatile float x_accel;
   volatile float y_accel;
   volatile float z_accel;
   volatile float x_angle;
   volatile float y_angle;
   volatile float z_angle;
-} gyro_accel_st;
+};
 
-typedef struct {
+struct accel_reading_st{
   float x_accel;
   float y_accel;
-} accel_reading_st;
+};
 
-const volatile uint8_t read_register(uint16_t address);
-void write_register(uint8_t address, uint8_t data);
-void mpu6050_init();
-volatile gyro_accel_st read_gyro_data();
-accel_reading_st return_angle(gyro_accel_st data_in);
+class mpu6050{
+    public:
+        mpu6050();
+        void read_gyro_data();
+        accel_reading_st return_angle(gyro_accel_st data_in);
+        gyro_accel_st get_gyro_data();
+
+    private:
+        void mpu6050_init();
+        uint8_t read_register(uint16_t address);
+        void write_register(uint8_t address, uint8_t data);
+};
+
 #endif
