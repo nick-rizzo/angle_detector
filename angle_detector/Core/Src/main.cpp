@@ -26,6 +26,7 @@
 #include "string.h"
 #include "queue.h"
 #include "mpu6050.h"
+#include "ssd1306.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -60,7 +61,7 @@ const osThreadAttr_t gyro_rx_attributes = {
 osThreadId_t oled_txHandle;
 const osThreadAttr_t oled_tx_attributes = {
   .name = "oled_tx",
-  .stack_size = 256 * 4,
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityHigh,
 };
 /* USER CODE BEGIN PV */
@@ -385,8 +386,12 @@ void start_oled_tx(void *argument)
 {
   /* USER CODE BEGIN start_oled_tx */
   mpu6050 accel_gyro;
+  pitch_display pitch_oled;
+  roll_display roll_oled;
   gyro_accel_st raw_data;
   accel_reading_st angle_data;
+  uint8_t old_p3 = 0;
+  pitch_oled.display_init();
   /* Infinite loop */
   while(1){
     /*
@@ -398,12 +403,28 @@ void start_oled_tx(void *argument)
       block
     }
     */
+    //gyro data registers store the most recent value allowing for grabbing at any time
+    // pitch_oled.clear_display();
     accel_gyro.read_gyro_data();
     raw_data = accel_gyro.get_gyro_data();
     angle_data = accel_gyro.return_angle(raw_data);
-    char x_str[7];
-    sprintf(x_str, "%.2f\n\r", angle_data.x_accel);
-    HAL_UART_Transmit(&huart2, (uint8_t*)x_str, sizeof(x_str), 10000);
+    uint8_t p3 = (uint8_t)angle_data.y_accel;
+    //clear old artifacts
+    if (p3 < old_p3){
+      pitch_oled.clear_triangle({LINE_X_COORD,(LINE_Y_COORD-1)},
+                                {(DISPLAY_WIDTH-1), (LINE_Y_COORD-1)-p3},
+                                {(DISPLAY_WIDTH-1), (LINE_Y_COORD-1)-old_p3});
+    }
+    //draw new pixel
+    pitch_oled.draw_triangle({LINE_X_COORD,(LINE_Y_COORD-1)},
+                             {(DISPLAY_WIDTH-1), (LINE_Y_COORD-1)},
+                             {(DISPLAY_WIDTH-1), (LINE_Y_COORD-1)-p3});
+    pitch_oled.mirror_vertically(64,{64,8},64,56);
+    pitch_oled.ssd1306_update_display();
+    old_p3 = (uint8_t)angle_data.y_accel;
+    // char x_str[7];
+    // sprintf(x_str, "%.2f\n\r", angle_data.x_accel);
+    // HAL_UART_Transmit(&huart2, (uint8_t*)x_str, sizeof(x_str), 10000);
     osDelay(16);
   }
   /* USER CODE END start_oled_tx */
