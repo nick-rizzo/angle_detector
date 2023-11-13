@@ -26,6 +26,7 @@ void ssd1306_oled::write_data(uint8_t *data){
 		data_buf[i+1] = data[i];
 	}
 	HAL_I2C_Master_Transmit(&hi2c1, SSD1306_ADDR, data_buf, SSD1306_BUF_SIZE+1, HAL_MAX_DELAY);
+	// HAL_I2C_Mem_Write_DMA(&hi2c1, SSD1306_ADDR, 0x40,1, data, SSD1306_BUF_SIZE);
 }
 
 void ssd1306_oled::ssd1306_update_display(){
@@ -102,22 +103,22 @@ ssd1306_oled::ssd1306_oled(){
 	clear_display();
 }
 
-void ssd1306_oled::place_pixel(int x, int y){
+void ssd1306_oled::place_pixel(uint8_t x, uint8_t y){
 	//0,0 is top left
 	// x is col num -- run
 	// y is row num -- rise
 	ssd1306_buf[((y/8)*128) + x] |= (1<<(y%8));
 }
 
-bool ssd1306_oled::get_pixel(int x, int y){
+uint8_t ssd1306_oled::get_pixel(uint8_t x, uint8_t y){
 	return (ssd1306_buf[((y/8)*128) + x])>>(y%8) & 0x1;
 }
 
-void ssd1306_oled::clear_pixel(int x, int y){
+void ssd1306_oled::clear_pixel(uint8_t x, uint8_t y){
 	ssd1306_buf[((y/8)*128) + x] &= (0<<(y%8));
 }
 
-void ssd1306_oled::invert_pixel(int x, int y){
+void ssd1306_oled::invert_pixel(uint8_t x, uint8_t y){
 	//0,0 is top left
 	// x is col num -- run
 	// y is row num -- rise
@@ -185,53 +186,53 @@ void ssd1306_oled::invert_box(int width, int height, int x, int y){
 	}
 }
 
-int ssd1306_oled::sign (coordinates p1, coordinates p2, coordinates p3){
-	return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+double ssd1306_oled::area (coordinates p1, coordinates p2, coordinates p3){
+	return abs((p1.x*(p2.y-p3.y) + p2.x*(p3.y-p1.y)+ p3.x*(p1.y-p2.y))/2.0);
 }
 
+// bool ssd1306_oled::is_point_in_triangle(coordinates pt, coordinates p1, coordinates p2, coordinates p3){
+// 	double area_of_triangle = area(p1, p2, p3);
+// 	double area_of_pt_p2_p3 = area(pt, p2, p3);
+// 	double area_of_p1_pt_p3 = area(p1, pt, p3);
+// 	double area_of_p1_p2_pt = area(p1, p2, pt);
+
+// 	return (area_of_triangle == (area_of_pt_p2_p3 + area_of_p1_pt_p3 + area_of_p1_p2_pt));
+// }
+
 bool ssd1306_oled::is_point_in_triangle(coordinates pt, coordinates p1, coordinates p2, coordinates p3){
-	int d1;
-	int d2;
-	int d3;
-	bool has_pos;
-	bool has_neg;
+ double denominator = ((p2.y - p3.y)*(p1.x - p3.x) + (p3.x - p2.x)*(p1.y - p3.y));
+ double a = ((p2.y - p3.y)*(pt.x - p3.x) + (p3.x - p2.x)*(pt.y - p3.y)) / denominator;
+ double b = ((p3.y - p1.y)*(pt.x - p3.x) + (p1.x - p3.x)*(pt.y - p3.y)) / denominator;
+ double c = 1 - a - b;
 
-	d1 = sign(pt, p1, p2);
-	d2 = sign(pt, p2, p3);
-	d3 = sign(pt, p3, p1);
-
-	has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-    has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-
-    return !(has_neg && has_pos);
-
+ return 0 <= a && a <= 1 && 0 <= b && b <= 1 && 0 <= c && c <= 1;
 }
 
 void ssd1306_oled::draw_triangle(coordinates p1, coordinates p2, coordinates p3){
-	int x_min = min(min(p1.x, p2.x) , min(p1.x, p3.x));
-	int x_max = max(max(p1.x, p2.x) , max(p1.x, p3.x));
-	int y_min = min(min(p1.y, p2.y) , min(p1.y, p3.y));
-	int y_max = max(max(p1.y, p2.y) , max(p1.y, p3.y));
-	for(int i=x_min; i<x_max; i++){
-		for(int j=y_min; j<y_max; j++){
+	uint8_t x_min = min(min(p1.x, p2.x) , min(p1.x, p3.x));
+	uint8_t x_max = max(max(p1.x, p2.x) , max(p1.x, p3.x));
+	uint8_t y_min = min(min(p1.y, p2.y) , min(p1.y, p3.y));
+	uint8_t y_max = max(max(p1.y, p2.y) , max(p1.y, p3.y));
+	for(uint8_t i=x_min; i<x_max; i++){
+		for(uint8_t j=y_min; j<y_max; j++){
 			coordinates cur_pt = {i, j};
 			if (is_point_in_triangle(cur_pt, p1, p2, p3)){
 				place_pixel(i,j);
 			}
-			else{
-				clear_pixel(i,j);
-			}
+			// else{
+			// 	clear_pixel(i,j);
+			// }
 		}
 	}
 }
 
 void ssd1306_oled::clear_triangle(coordinates p1, coordinates p2, coordinates p3){
-	int x_min = min(min(p1.x, p2.x) , min(p1.x, p3.x));
-	int x_max = max(max(p1.x, p2.x) , max(p1.x, p3.x));
-	int y_min = min(min(p1.y, p2.y) , min(p1.y, p3.y));
-	int y_max = max(max(p1.y, p2.y) , max(p1.y, p3.y));
-	for(int i=x_min; i<x_max; i++){
-		for(int j=y_min; j<y_max; j++){
+	uint8_t x_min = min(min(p1.x, p2.x) , min(p1.x, p3.x));
+	uint8_t x_max = max(max(p1.x, p2.x) , max(p1.x, p3.x));
+	uint8_t y_min = min(min(p1.y, p2.y) , min(p1.y, p3.y));
+	uint8_t y_max = max(max(p1.y, p2.y) , max(p1.y, p3.y));
+	for(uint8_t i=x_min; i<x_max; i++){
+		for(uint8_t j=y_min; j<y_max; j++){
 			coordinates cur_pt = {i, j};
 			if (is_point_in_triangle(cur_pt, p1, p2, p3)){
 				clear_pixel(i,j);
@@ -254,25 +255,9 @@ void ssd1306_oled::insert_shape (int x, int y, shapes shape){
 	}
 }
 
-void ssd1306_oled::mirror_vertically(int col_num, coordinates top_left_crnr, int length_in, int height_in){
-	//selects a box region and mirrors across a column
-	int length = ((top_left_crnr.x + length_in) > DISPLAY_WIDTH) ? DISPLAY_WIDTH : (top_left_crnr.x + length_in);
-	int height = ((top_left_crnr.y + height_in) > DISPLAY_HEIGHT) ? DISPLAY_HEIGHT : (top_left_crnr.y + height_in);
-	for (int row=top_left_crnr.x; row < length; row++){
-		for (int col=top_left_crnr.y; col < height; col++){
-			if (get_pixel(row, col) == 1){
-				place_pixel((DISPLAY_WIDTH-row), col);
-			}
-			else {
-				clear_pixel((DISPLAY_WIDTH-row), col);
-			}
-		}
-	}
-}
-
 void ssd1306_oled::display_init(){
 	// initial display screen
-	// draw_box(128, 1, 0, LINE_Y_COORD?);
+	draw_box(128, 1, 0, LINE_Y_COORD);
 }
 
 void ssd1306_oled::insert_selector(int cur_select){

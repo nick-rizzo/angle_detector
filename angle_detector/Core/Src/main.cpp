@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <algorithm>
 #include "string.h"
 #include "queue.h"
 #include "mpu6050.h"
@@ -41,12 +42,13 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+using namespace std;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
+DMA_HandleTypeDef hdma_i2c1_tx;
 
 UART_HandleTypeDef huart2;
 
@@ -61,7 +63,7 @@ const osThreadAttr_t gyro_rx_attributes = {
 osThreadId_t oled_txHandle;
 const osThreadAttr_t oled_tx_attributes = {
   .name = "oled_tx",
-  .stack_size = 512 * 4,
+  .stack_size = 1024 * 4,
   .priority = (osPriority_t) osPriorityHigh,
 };
 /* USER CODE BEGIN PV */
@@ -71,6 +73,7 @@ static xQueueHandle gyro_queue;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_USART2_UART_Init(void);
@@ -114,6 +117,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_I2C1_Init();
   MX_I2C2_Init();
   MX_USART2_UART_Init();
@@ -313,6 +317,22 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -390,7 +410,7 @@ void start_oled_tx(void *argument)
   roll_display roll_oled;
   gyro_accel_st raw_data;
   accel_reading_st angle_data;
-  uint8_t old_p3 = 0;
+  int8_t old_p3 = 0;
   pitch_oled.display_init();
   /* Infinite loop */
   while(1){
@@ -408,22 +428,31 @@ void start_oled_tx(void *argument)
     accel_gyro.read_gyro_data();
     raw_data = accel_gyro.get_gyro_data();
     angle_data = accel_gyro.return_angle(raw_data);
-    uint8_t p3 = (uint8_t)angle_data.y_accel;
+    int8_t p3 = (int8_t)angle_data.y_accel;
+    int8_t p3_corr = (p3 > 15) ? 15 : p3;
     //clear old artifacts
-    if (p3 < old_p3){
+    if (abs(p3) < abs(old_p3)){
       pitch_oled.clear_triangle({LINE_X_COORD,(LINE_Y_COORD-1)},
-                                {(DISPLAY_WIDTH-1), (LINE_Y_COORD-1)-p3},
-                                {(DISPLAY_WIDTH-1), (LINE_Y_COORD-1)-old_p3});
+                                {(DISPLAY_WIDTH-1), (uint8_t)(LINE_Y_COORD-1-p3_corr)},
+                                {(DISPLAY_WIDTH-1), (uint8_t)(LINE_Y_COORD-1-old_p3)});
+      pitch_oled.clear_triangle({DISPLAY_WIDTH-LINE_X_COORD, (LINE_Y_COORD+1)},
+                                {0, (uint8_t)(LINE_Y_COORD+1+p3_corr)},
+                                {0, (uint8_t)(LINE_Y_COORD+1+old_p3)});
     }
     //draw new pixel
     pitch_oled.draw_triangle({LINE_X_COORD,(LINE_Y_COORD-1)},
-                             {(DISPLAY_WIDTH-1), (LINE_Y_COORD-1)},
-                             {(DISPLAY_WIDTH-1), (LINE_Y_COORD-1)-p3});
-    pitch_oled.mirror_vertically(64,{64,8},64,56);
+                             {(DISPLAY_WIDTH-1), (uint8_t)(LINE_Y_COORD-1)},
+                             {(DISPLAY_WIDTH-1), (uint8_t)(LINE_Y_COORD-1-p3_corr)});
+
+    pitch_oled.draw_triangle({DISPLAY_WIDTH-LINE_X_COORD,(LINE_Y_COORD+1)},
+                             {0, (uint8_t)(LINE_Y_COORD+1)},
+                             {0, (uint8_t)(LINE_Y_COORD+1+p3_corr)});
+
+
     pitch_oled.ssd1306_update_display();
-    old_p3 = (uint8_t)angle_data.y_accel;
+    old_p3 = p3_corr;
     // char x_str[7];
-    // sprintf(x_str, "%.2f\n\r", angle_data.x_accel);
+    // sprintf(x_str, "%.2f\n\r", angle_data.y_accel);
     // HAL_UART_Transmit(&huart2, (uint8_t*)x_str, sizeof(x_str), 10000);
     osDelay(16);
   }
