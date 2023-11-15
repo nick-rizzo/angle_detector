@@ -5,15 +5,16 @@
 
 #include "main.h"
 
-#define LINE_Y_COORD ((uint8_t)32)
+#define LINE_Y_COORD ((uint8_t)40)
 #define LINE_X_COORD ((uint8_t)64)
 #define DISPLAY_WIDTH ((uint8_t)128)
 #define DISPLAY_HEIGHT ((uint8_t)64)
 
-const typedef enum {
+enum shapes{
 	LEFT_ARROW,
-	RIGHT_ARROW
-} shapes;
+	RIGHT_ARROW,
+	DEGREES
+};
 
 struct coordinates{
 	uint8_t x;
@@ -21,8 +22,10 @@ struct coordinates{
 };
 
 class ssd1306_oled{
+	uint8_t ssd1306_buf[SSD1306_BUF_SIZE];
+	I2C_HandleTypeDef i2c_bus;
 	public:
-		ssd1306_oled();
+		ssd1306_oled(I2C_HandleTypeDef &i2c_bus_in);
 		void ssd1306_update_display();
 		void ssd1306_fill_buffer(uint8_t val);
 		void clear_display();
