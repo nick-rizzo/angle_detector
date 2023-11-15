@@ -48,6 +48,7 @@ using namespace std;
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
+I2C_HandleTypeDef hi2c3;
 DMA_HandleTypeDef hdma_i2c1_tx;
 
 UART_HandleTypeDef huart2;
@@ -63,7 +64,7 @@ const osThreadAttr_t gyro_rx_attributes = {
 osThreadId_t oled_txHandle;
 const osThreadAttr_t oled_tx_attributes = {
   .name = "oled_tx",
-  .stack_size = 1024 * 4,
+  .stack_size = 2048 * 4,
   .priority = (osPriority_t) osPriorityHigh,
 };
 /* USER CODE BEGIN PV */
@@ -76,6 +77,7 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
+static void MX_I2C3_Init(void);
 static void MX_USART2_UART_Init(void);
 void start_gyro_rx(void *argument);
 void start_oled_tx(void *argument);
@@ -120,6 +122,7 @@ int main(void)
   MX_DMA_Init();
   MX_I2C1_Init();
   MX_I2C2_Init();
+  MX_I2C3_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   /* USER CODE END 2 */
@@ -186,7 +189,7 @@ void SystemClock_Config(void)
   /** Configure the main internal regulator output voltage
   */
   __HAL_RCC_PWR_CLK_ENABLE();
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -194,8 +197,21 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 16;
+  RCC_OscInitStruct.PLL.PLLN = 360;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 2;
+  RCC_OscInitStruct.PLL.PLLR = 2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Activate the Over-Drive mode
+  */
+  if (HAL_PWREx_EnableOverDrive() != HAL_OK)
   {
     Error_Handler();
   }
@@ -204,12 +220,12 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV4;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
   {
     Error_Handler();
   }
@@ -280,6 +296,40 @@ static void MX_I2C2_Init(void)
   /* USER CODE BEGIN I2C2_Init 2 */
 
   /* USER CODE END I2C2_Init 2 */
+
+}
+
+/**
+  * @brief I2C3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C3_Init(void)
+{
+
+  /* USER CODE BEGIN I2C3_Init 0 */
+
+  /* USER CODE END I2C3_Init 0 */
+
+  /* USER CODE BEGIN I2C3_Init 1 */
+
+  /* USER CODE END I2C3_Init 1 */
+  hi2c3.Instance = I2C3;
+  hi2c3.Init.ClockSpeed = 100000;
+  hi2c3.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c3.Init.OwnAddress1 = 0;
+  hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c3.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c3.Init.OwnAddress2 = 0;
+  hi2c3.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c3.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C3_Init 2 */
+
+  /* USER CODE END I2C3_Init 2 */
 
 }
 
@@ -396,6 +446,49 @@ void start_gyro_rx(void *argument)
 }
 
 /* USER CODE BEGIN Header_start_oled_tx */
+void angle_display(ssd1306_oled display, int8_t angle){
+  #define NUM_CHARS 3
+  #define CHAR_OFFSET 72
+  #define DISPLAY_BOUNDARY (DISPLAY_HEIGHT-1 - LINE_Y_COORD)
+  static int8_t old_angle = 0;
+  int8_t angle_corr = 0;
+  if (abs(angle) > DISPLAY_BOUNDARY){
+    angle_corr = (angle < 0) ? (-DISPLAY_BOUNDARY) : DISPLAY_BOUNDARY;
+  }
+  else {
+    angle_corr = angle;
+  }
+  //clear old artifacts
+  if (abs(angle_corr) < abs(old_angle)){
+    display.clear_triangle({LINE_X_COORD,(LINE_Y_COORD)},
+                              {(DISPLAY_WIDTH), (uint8_t)(LINE_Y_COORD-angle_corr)},
+                              {(DISPLAY_WIDTH), (uint8_t)(LINE_Y_COORD-old_angle)});
+    display.clear_triangle({DISPLAY_WIDTH-LINE_X_COORD, (LINE_Y_COORD+1)},
+                              {0, (uint8_t)(LINE_Y_COORD+1+angle_corr)},
+                              {0, (uint8_t)(LINE_Y_COORD+1+old_angle)});
+  }
+  //draw new pixel
+  display.draw_triangle({LINE_X_COORD,(LINE_Y_COORD)},
+                            {(DISPLAY_WIDTH), (uint8_t)(LINE_Y_COORD)},
+                            {(DISPLAY_WIDTH), (uint8_t)(LINE_Y_COORD-angle_corr)});
+
+  display.draw_triangle({DISPLAY_WIDTH-LINE_X_COORD,(LINE_Y_COORD+1)},
+                            {0, (uint8_t)(LINE_Y_COORD+1)},
+                            {0, (uint8_t)(LINE_Y_COORD+1+angle_corr)});
+
+  display.draw_box(128, 3, 0, LINE_Y_COORD);
+  char x_str[NUM_CHARS+1]; // account for null termination
+  sprintf(x_str, "%3d", (int)angle);
+  display.clear_box((NUM_CHARS*10), 8, CHAR_OFFSET, 0);
+  for (uint8_t i=0;i<NUM_CHARS;i++){
+    display.place_char(x_str[i], (CHAR_OFFSET+(10*i)), 0);
+  }
+  display.insert_shape(CHAR_OFFSET+(NUM_CHARS*10),0, DEGREES);
+  display.ssd1306_update_display();
+
+  old_angle = angle_corr;
+}
+
 /**
 * @brief Function implementing the oled_tx thread.
 * @param argument: Not used
@@ -406,54 +499,21 @@ void start_oled_tx(void *argument)
 {
   /* USER CODE BEGIN start_oled_tx */
   mpu6050 accel_gyro;
-  pitch_display pitch_oled;
-  roll_display roll_oled;
+  pitch_display pitch_oled(hi2c1);
+  roll_display roll_oled(hi2c3);
   gyro_accel_st raw_data;
   accel_reading_st angle_data;
-  int8_t old_p3 = 0;
+
   pitch_oled.display_init();
+  roll_oled.display_init();
   /* Infinite loop */
   while(1){
-    /*
-    60 times/secs
-      pop value
-      process
-      display
-    } else {
-      block
-    }
-    */
-    //gyro data registers store the most recent value allowing for grabbing at any time
-    // pitch_oled.clear_display();
     accel_gyro.read_gyro_data();
     raw_data = accel_gyro.get_gyro_data();
     angle_data = accel_gyro.return_angle(raw_data);
-    int8_t p3 = (int8_t)angle_data.y_accel;
-    int8_t p3_corr = (p3 > 15) ? 15 : p3;
-    //clear old artifacts
-    if (abs(p3) < abs(old_p3)){
-      pitch_oled.clear_triangle({LINE_X_COORD,(LINE_Y_COORD-1)},
-                                {(DISPLAY_WIDTH-1), (uint8_t)(LINE_Y_COORD-1-p3_corr)},
-                                {(DISPLAY_WIDTH-1), (uint8_t)(LINE_Y_COORD-1-old_p3)});
-      pitch_oled.clear_triangle({DISPLAY_WIDTH-LINE_X_COORD, (LINE_Y_COORD+1)},
-                                {0, (uint8_t)(LINE_Y_COORD+1+p3_corr)},
-                                {0, (uint8_t)(LINE_Y_COORD+1+old_p3)});
-    }
-    //draw new pixel
-    pitch_oled.draw_triangle({LINE_X_COORD,(LINE_Y_COORD-1)},
-                             {(DISPLAY_WIDTH-1), (uint8_t)(LINE_Y_COORD-1)},
-                             {(DISPLAY_WIDTH-1), (uint8_t)(LINE_Y_COORD-1-p3_corr)});
-
-    pitch_oled.draw_triangle({DISPLAY_WIDTH-LINE_X_COORD,(LINE_Y_COORD+1)},
-                             {0, (uint8_t)(LINE_Y_COORD+1)},
-                             {0, (uint8_t)(LINE_Y_COORD+1+p3_corr)});
-
-
-    pitch_oled.ssd1306_update_display();
-    old_p3 = p3_corr;
-    // char x_str[7];
-    // sprintf(x_str, "%.2f\n\r", angle_data.y_accel);
-    // HAL_UART_Transmit(&huart2, (uint8_t*)x_str, sizeof(x_str), 10000);
+    angle_display(pitch_oled, angle_data.y_accel);
+    angle_display(roll_oled, angle_data.x_accel);
+    // TODO: separate into two tasks
     osDelay(16);
   }
   /* USER CODE END start_oled_tx */
