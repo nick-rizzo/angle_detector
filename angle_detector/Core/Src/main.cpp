@@ -57,18 +57,18 @@ UART_HandleTypeDef huart2;
 osThreadId_t gyro_rxHandle;
 const osThreadAttr_t gyro_rx_attributes = {
   .name = "gyro_rx",
-  .stack_size = 128 * 4,
+  .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for oled_tx */
-osThreadId_t oled_txHandle;
-const osThreadAttr_t oled_tx_attributes = {
-  .name = "oled_tx",
-  .stack_size = 2048 * 4,
+/* Definitions for pitch_oled_tx */
+osThreadId_t pitch_oled_txHandle;
+const osThreadAttr_t pitch_oled_tx_attributes = {
+  .name = "pitch_oled_tx",
+  .stack_size = 1024 * 4,
   .priority = (osPriority_t) osPriorityHigh,
 };
 /* USER CODE BEGIN PV */
-static xQueueHandle gyro_queue;
+static xQueueHandle pitch_queue;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -80,7 +80,7 @@ static void MX_I2C2_Init(void);
 static void MX_I2C3_Init(void);
 static void MX_USART2_UART_Init(void);
 void start_gyro_rx(void *argument);
-void start_oled_tx(void *argument);
+void start_pitch_oled_tx(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -144,15 +144,15 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
-  gyro_queue = xQueueCreate(GYRO_QUEUE_LEN, sizeof(gyro_accel_st));
+  pitch_queue = xQueueCreate(GYRO_QUEUE_LEN, sizeof(float));
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
   /* creation of gyro_rx */
   gyro_rxHandle = osThreadNew(start_gyro_rx, NULL, &gyro_rx_attributes);
 
-  /* creation of oled_tx */
-  oled_txHandle = osThreadNew(start_oled_tx, NULL, &oled_tx_attributes);
+  /* creation of pitch_oled_tx */
+  pitch_oled_txHandle = osThreadNew(start_pitch_oled_tx, NULL, &pitch_oled_tx_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -223,7 +223,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV4;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
   {
@@ -401,51 +401,6 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-/* USER CODE END 4 */
-
-/* USER CODE BEGIN Header_start_gyro_rx */
-/**
-  * @brief  Function implementing the gyro_rx thread.
-  * @param  argument: Not used
-  * @retval None
-  */
-/* USER CODE END Header_start_gyro_rx */
-void start_gyro_rx(void *argument)
-{
-  /* USER CODE BEGIN 5 */
-  /* Infinite loop */
-  // gyro_accel_st tx_st = {.x_angle=0xAAAAAAAA, .y_angle=0, .z_angle=0};
-  while(1){
-    // //if interrupt w new data store data
-    // //xqueueoverwrite
-    // if (xQueueSend(gyro_queue, (void *)&tx_st, 10) != pdTRUE){
-    //   //do something i guess
-    // }
-    osDelay(1);
-
-    /*
-    i2c interrupt{
-      if val received give semaphore
-    }
-    if (take semaphore){
-      process
-      if queue not full {
-        add value
-      } else {
-        block till queue has spot
-      }
-    }
-
-    uint8_t StartMSG[] = "Starting I2C Scanning: \r\n";
-    HAL_UART_Transmit(&huart2, StartMSG, sizeof(StartMSG), 10000);
-
-    */
-  }
-  /* USER CODE END 5 */
-}
-
-/* USER CODE BEGIN Header_start_oled_tx */
 void angle_display(ssd1306_oled display, int8_t angle){
   #define NUM_CHARS 3
   #define CHAR_OFFSET 72
@@ -488,35 +443,64 @@ void angle_display(ssd1306_oled display, int8_t angle){
 
   old_angle = angle_corr;
 }
+/* USER CODE END 4 */
 
+/* USER CODE BEGIN Header_start_gyro_rx */
 /**
-* @brief Function implementing the oled_tx thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_start_oled_tx */
-void start_oled_tx(void *argument)
+  * @brief  Function implementing the gyro_rx thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_start_gyro_rx */
+void start_gyro_rx(void *argument)
 {
-  /* USER CODE BEGIN start_oled_tx */
+  /* USER CODE BEGIN 5 */
   mpu6050 accel_gyro;
-  pitch_display pitch_oled(hi2c1);
-  roll_display roll_oled(hi2c3);
   gyro_accel_st raw_data;
   accel_reading_st angle_data;
 
-  pitch_oled.display_init();
-  roll_oled.display_init();
   /* Infinite loop */
   while(1){
     accel_gyro.read_gyro_data();
     raw_data = accel_gyro.get_gyro_data();
     angle_data = accel_gyro.return_angle(raw_data);
-    angle_display(pitch_oled, angle_data.y_accel);
-    angle_display(roll_oled, angle_data.x_accel);
-    // TODO: separate into two tasks
+    // //xqueueoverwrite
+    if (xQueueSend(pitch_queue, (void *)&angle_data.y_accel, 10) != pdTRUE){
+      //do something i guess
+    }
+    osDelay(8);
+  }
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_start_pitch_oled_tx */
+/**
+  * @brief Function implementing the pitch_oled_tx thread.
+  * @param argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_start_pitch_oled_tx */
+void start_pitch_oled_tx(void *argument)
+{
+  /* USER CODE BEGIN start_oled_tx */
+  pitch_display pitch_oled(hi2c1);
+  // roll_display roll_oled(hi2c3);
+  float pitch_val;
+  pitch_oled.display_init();
+  // roll_oled.display_init();
+  /* Infinite loop */
+  while(1){
+
+    if (xQueueReceive(pitch_queue, (void *)&pitch_val, 10) == pdTRUE){
+      //do something i guess
+      // HAL_UART_Transmit(&huart2, (uint8_t *)"Hello\r\n", 8, 10000);
+      angle_display(pitch_oled, pitch_val);
+    }
+
+    // angle_display(roll_oled, angle_data.x_accel);
     osDelay(16);
   }
-  /* USER CODE END start_oled_tx */
+  /* USER CODE END start_pitch_oled_tx */
 }
 
 /**
