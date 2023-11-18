@@ -1,5 +1,14 @@
-#ifndef MPU6050_H
-#define MPU6050_H
+/*
+ *	===============================================================================================
+ *  File Name   : mpu6050.h
+ *
+ *  Description : Header file for MPU6050 accelerometer/gyroscope
+ *
+ *  Contributors: Nick Rizzo
+ *	===============================================================================================
+ */
+#ifndef MPU6050_H_
+#define MPU6050_H_
 
 #include "main.h"
 

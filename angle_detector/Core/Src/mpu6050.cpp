@@ -1,5 +1,15 @@
-#ifndef MPU6050
-#define MPU6050
+/*
+ *	===============================================================================================
+ *  File Name   :   mpu6050.cpp
+ *
+ *  Description :   Driver for MPU6050 accelerometer/gyroscope
+ * 					Used to gather data and process into angles
+ *
+ *  Contributors:   Nick Rizzo
+ *	===============================================================================================
+ */
+#ifndef MPU6050_CPP_
+#define MPU6050_CPP_
 #include "mpu6050.h"
 #include <stdio.h>
 #include <math.h>
