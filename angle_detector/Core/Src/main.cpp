@@ -446,7 +446,7 @@ void angle_display(ssd1306_oled display, int8_t angle){
 
   display.draw_box(128, 3, 0, LINE_Y_COORD);
   char x_str[NUM_CHARS+1]; // account for null termination
-  sprintf(x_str, "%3d", (int)angle);
+  sprintf(x_str, "%3d", (int)abs(angle));
   display.clear_box((NUM_CHARS*10), 8, CHAR_OFFSET, 0);
   for (uint8_t i=0;i<NUM_CHARS;i++){
     display.place_char(x_str[i], (CHAR_OFFSET+(10*i)), 0);
@@ -477,12 +477,11 @@ void start_gyro_rx(void *argument)
     accel_gyro.read_gyro_data();
     raw_data = accel_gyro.get_gyro_data();
     angle_data = accel_gyro.return_angle(raw_data);
-    // //xqueueoverwrite
-    if (xQueueSend(pitch_queue, (void *)&angle_data.y_accel, 10) != pdTRUE){
-      //do something i guess
+    if (xQueueOverwrite(pitch_queue, (void *)&angle_data.y_accel) != pdTRUE){
+      //Error
     }
-    if (xQueueSend(roll_queue, (void *)&angle_data.x_accel, 10) != pdTRUE){
-      //do something i guess
+    if (xQueueOverwrite(roll_queue, (void *)&angle_data.x_accel) != pdTRUE){
+      //Error
     }
     osDelay(8);
   }
@@ -499,21 +498,14 @@ void start_gyro_rx(void *argument)
 void start_pitch_oled_tx(void *argument)
 {
   /* USER CODE BEGIN start_pitch_oled_tx */
-  pitch_display pitch_oled(hi2c1, 0x78);
-  // roll_display roll_oled(hi2c3, 0x74);
   float pitch_val;
+  pitch_display pitch_oled(hi2c1, 0x78);
   pitch_oled.display_init();
-  // roll_oled.display_init();
-  /* Infinite loop */
-  while(1){
 
+  while(1){
     if (xQueueReceive(pitch_queue, (void *)&pitch_val, 10) == pdTRUE){
-      //do something i guess
-      // HAL_UART_Transmit(&huart2, (uint8_t *)"Hello\r\n", 8, 10000);
       angle_display(pitch_oled, pitch_val);
     }
-
-    // angle_display(roll_oled, angle_data.x_accel);
     osDelay(16);
   }
   /* USER CODE END start_pitch_oled_tx */
@@ -529,18 +521,14 @@ void start_pitch_oled_tx(void *argument)
 void start_roll_oled_tx(void *argument)
 {
   /* USER CODE BEGIN start_roll_oled_tx */
-  roll_display roll_oled(hi2c3, 0x7A);
   float roll_val;
+  roll_display roll_oled(hi2c3, 0x7A);
   roll_oled.display_init();
-  /* Infinite loop */
-  while(1){
 
+  while(1){
     if (xQueueReceive(roll_queue, (void *)&roll_val, 10) == pdTRUE){
-      //do something i guess
-      // HAL_UART_Transmit(&huart2, (uint8_t *)"Hello\r\n", 8, 10000);
       angle_display(roll_oled, roll_val);
     }
-
     osDelay(16);
   }
   /* USER CODE END start_roll_oled_tx */
