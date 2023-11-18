@@ -38,6 +38,10 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define GYRO_QUEUE_LEN 1
+// #define MPU6050_ADDRESS (0x68<<1)
+#define MPU6050_ADDRESS 0xD0
+#define PITCH_OLED_ADDRESS 0x78
+#define ROLL_OLED_ADDRESS 0x7A
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -468,7 +472,7 @@ void angle_display(ssd1306_oled display, int8_t angle){
 void start_gyro_rx(void *argument)
 {
   /* USER CODE BEGIN 5 */
-  mpu6050 accel_gyro;
+  mpu6050 accel_gyro(hi2c2, MPU6050_ADDRESS);
   gyro_accel_st raw_data;
   accel_reading_st angle_data;
 
@@ -499,7 +503,7 @@ void start_pitch_oled_tx(void *argument)
 {
   /* USER CODE BEGIN start_pitch_oled_tx */
   float pitch_val;
-  pitch_display pitch_oled(hi2c1, 0x78);
+  pitch_display pitch_oled(hi2c1, PITCH_OLED_ADDRESS);
   pitch_oled.display_init();
 
   while(1){
@@ -522,7 +526,7 @@ void start_roll_oled_tx(void *argument)
 {
   /* USER CODE BEGIN start_roll_oled_tx */
   float roll_val;
-  roll_display roll_oled(hi2c3, 0x7A);
+  roll_display roll_oled(hi2c3, ROLL_OLED_ADDRESS);
   roll_oled.display_init();
 
   while(1){

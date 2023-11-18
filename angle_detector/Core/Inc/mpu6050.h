@@ -6,8 +6,6 @@
 #define GYRO_LSB_SENS 131.0
 #define ACCEL_LSB_SENS 4096.0
 
-#define MPU6050_ADDRESS (0x68<<1)
-
 #define SAM_RATE_DIV      0x19    // Sample rate divider = Gyro output rate / (1 + Sample rate divider)
 #define GYRO_CFG          0x1B    // Gyro Configuration
 #define ACCEL_CFG         0x1C    // Accelerometer Configuration
@@ -29,22 +27,22 @@
 #define WHOAMI            0x75    //  ID reg
 
 struct gyro_accel_st{
-  volatile float x_accel;
-  volatile float y_accel;
-  volatile float z_accel;
-  volatile float x_angle;
-  volatile float y_angle;
-  volatile float z_angle;
+    volatile float x_accel;
+    volatile float y_accel;
+    volatile float z_accel;
+    volatile float x_angle;
+    volatile float y_angle;
+    volatile float z_angle;
 };
 
 struct accel_reading_st{
-  float x_accel;
-  float y_accel;
+    float x_accel;
+    float y_accel;
 };
 
 class mpu6050{
     public:
-        mpu6050();
+        mpu6050(I2C_HandleTypeDef i2c_in, uint16_t addr_in);
         void read_gyro_data();
         accel_reading_st return_angle(gyro_accel_st data_in);
         gyro_accel_st get_gyro_data();

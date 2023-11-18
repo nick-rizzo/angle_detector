@@ -10,7 +10,6 @@
 
 using namespace std;
 
-
 void ssd1306_oled::write_command(uint8_t data){
 	uint8_t cmd_data[2];
 	cmd_data[0] = 0x00;
@@ -19,15 +18,10 @@ void ssd1306_oled::write_command(uint8_t data){
 }
 
 void ssd1306_oled::write_data(uint8_t *data){
-	// uint8_t data_buf[SSD1306_BUF_SIZE+1];
-	// data_buf[0] = 0x40;
-	// for(int i=0;i<SSD1306_BUF_SIZE;i++){
-	// 	data_buf[i+1] = data[i];
-	// }
 	HAL_I2C_Mem_Write(&i2c_bus, addr, 0x40,1, data, SSD1306_BUF_SIZE, HAL_MAX_DELAY);
 	// HAL_I2C_Master_Transmit(&hi2c1, SSD1306_ADDR, data_buf, SSD1306_BUF_SIZE+1, HAL_MAX_DELAY);
-// 	while(HAL_I2C_GetState(&hi2c1) != HAL_I2C_STATE_READY);
-// 	HAL_I2C_Mem_Write_DMA(&hi2c1, SSD1306_ADDR, 0x40,1, data, SSD1306_BUF_SIZE);
+	// while(HAL_I2C_GetState(&hi2c1) != HAL_I2C_STATE_READY);
+	// HAL_I2C_Mem_Write_DMA(&hi2c1, SSD1306_ADDR, 0x40,1, data, SSD1306_BUF_SIZE);
 }
 
 void ssd1306_oled::ssd1306_update_display(){
@@ -193,15 +187,6 @@ double ssd1306_oled::area (coordinates p1, coordinates p2, coordinates p3){
 	return abs((p1.x*(p2.y-p3.y) + p2.x*(p3.y-p1.y)+ p3.x*(p1.y-p2.y))/2.0);
 }
 
-// bool ssd1306_oled::is_point_in_triangle(coordinates pt, coordinates p1, coordinates p2, coordinates p3){
-// 	double area_of_triangle = area(p1, p2, p3);
-// 	double area_of_pt_p2_p3 = area(pt, p2, p3);
-// 	double area_of_p1_pt_p3 = area(p1, pt, p3);
-// 	double area_of_p1_p2_pt = area(p1, p2, pt);
-
-// 	return (area_of_triangle == (area_of_pt_p2_p3 + area_of_p1_pt_p3 + area_of_p1_p2_pt));
-// }
-
 bool ssd1306_oled::is_point_in_triangle(coordinates pt, coordinates p1, coordinates p2, coordinates p3){
  double denominator = ((p2.y - p3.y)*(p1.x - p3.x) + (p3.x - p2.x)*(p1.y - p3.y));
  double a = ((p2.y - p3.y)*(pt.x - p3.x) + (p3.x - p2.x)*(pt.y - p3.y)) / denominator;
@@ -244,7 +229,6 @@ void ssd1306_oled::clear_triangle(coordinates p1, coordinates p2, coordinates p3
 	}
 }
 
-
 void ssd1306_oled::insert_shape (int x, int y, shapes shape){
 	//inserts custom 8x10 shape defined in fonts.h
 	int pixel = 0;
@@ -261,19 +245,6 @@ void ssd1306_oled::insert_shape (int x, int y, shapes shape){
 void ssd1306_oled::display_init(){
 	// initial display screen
 	draw_box(128, 3, 0, LINE_Y_COORD);
-}
-
-void ssd1306_oled::insert_selector(int cur_select){
-	insert_shape(0,(8*cur_select), LEFT_ARROW);
-	insert_shape((127-10),(8*cur_select), RIGHT_ARROW);
-	invert_box(128, 7, 0, (cur_select*8));
-}
-
-
-void ssd1306_oled::move_selector(int cur_select, int new_select){
-	insert_selector(cur_select);
-	insert_selector(new_select);
-    ssd1306_update_display();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////

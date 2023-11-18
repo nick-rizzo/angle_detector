@@ -5,19 +5,23 @@
 #include <math.h>
 
 gyro_accel_st gyro_data;
+uint16_t addr;
+I2C_HandleTypeDef i2c;
 
-mpu6050::mpu6050(){
+mpu6050::mpu6050(I2C_HandleTypeDef i2c_in, uint16_t addr_in){
+    i2c = i2c_in;
+    addr = addr_in;
     mpu6050_init();
 }
 
 uint8_t mpu6050::read_register(uint16_t address){
     uint8_t rd_data = 0;
-    HAL_I2C_Mem_Read(&hi2c2, MPU6050_ADDRESS, address, I2C_MEMADD_SIZE_8BIT, &rd_data, 1, HAL_MAX_DELAY);
+    HAL_I2C_Mem_Read(&i2c, addr, address, I2C_MEMADD_SIZE_8BIT, &rd_data, 1, HAL_MAX_DELAY);
     return rd_data;
 }
 
 void mpu6050::write_register(uint8_t address, uint8_t data){
-    HAL_I2C_Mem_Write(&hi2c2, MPU6050_ADDRESS, address, I2C_MEMADD_SIZE_8BIT, &data, 1, HAL_MAX_DELAY);
+    HAL_I2C_Mem_Write(&i2c, addr, address, I2C_MEMADD_SIZE_8BIT, &data, 1, HAL_MAX_DELAY);
 }
 
 void mpu6050::mpu6050_init(){
