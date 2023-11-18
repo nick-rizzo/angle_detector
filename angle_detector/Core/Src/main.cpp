@@ -64,11 +64,19 @@ const osThreadAttr_t gyro_rx_attributes = {
 osThreadId_t pitch_oled_txHandle;
 const osThreadAttr_t pitch_oled_tx_attributes = {
   .name = "pitch_oled_tx",
-  .stack_size = 1024 * 4,
-  .priority = (osPriority_t) osPriorityHigh,
+  .stack_size = 768 * 4,
+  .priority = (osPriority_t) osPriorityHigh1,
+};
+/* Definitions for roll_oled_tx */
+osThreadId_t roll_oled_txHandle;
+const osThreadAttr_t roll_oled_tx_attributes = {
+  .name = "roll_oled_tx",
+  .stack_size = 768 * 4,
+  .priority = (osPriority_t) osPriorityHigh2,
 };
 /* USER CODE BEGIN PV */
 static xQueueHandle pitch_queue;
+static xQueueHandle roll_queue;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -81,6 +89,7 @@ static void MX_I2C3_Init(void);
 static void MX_USART2_UART_Init(void);
 void start_gyro_rx(void *argument);
 void start_pitch_oled_tx(void *argument);
+void start_roll_oled_tx(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -145,6 +154,7 @@ int main(void)
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   pitch_queue = xQueueCreate(GYRO_QUEUE_LEN, sizeof(float));
+  roll_queue = xQueueCreate(GYRO_QUEUE_LEN, sizeof(float));
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -153,6 +163,9 @@ int main(void)
 
   /* creation of pitch_oled_tx */
   pitch_oled_txHandle = osThreadNew(start_pitch_oled_tx, NULL, &pitch_oled_tx_attributes);
+
+  /* creation of roll_oled_tx */
+  roll_oled_txHandle = osThreadNew(start_roll_oled_tx, NULL, &roll_oled_tx_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -247,7 +260,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.ClockSpeed = 400000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
@@ -315,7 +328,7 @@ static void MX_I2C3_Init(void)
 
   /* USER CODE END I2C3_Init 1 */
   hi2c3.Instance = I2C3;
-  hi2c3.Init.ClockSpeed = 100000;
+  hi2c3.Init.ClockSpeed = 400000;
   hi2c3.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c3.Init.OwnAddress1 = 0;
   hi2c3.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
@@ -468,6 +481,9 @@ void start_gyro_rx(void *argument)
     if (xQueueSend(pitch_queue, (void *)&angle_data.y_accel, 10) != pdTRUE){
       //do something i guess
     }
+    if (xQueueSend(roll_queue, (void *)&angle_data.x_accel, 10) != pdTRUE){
+      //do something i guess
+    }
     osDelay(8);
   }
   /* USER CODE END 5 */
@@ -482,9 +498,9 @@ void start_gyro_rx(void *argument)
 /* USER CODE END Header_start_pitch_oled_tx */
 void start_pitch_oled_tx(void *argument)
 {
-  /* USER CODE BEGIN start_oled_tx */
-  pitch_display pitch_oled(hi2c1);
-  // roll_display roll_oled(hi2c3);
+  /* USER CODE BEGIN start_pitch_oled_tx */
+  pitch_display pitch_oled(hi2c1, 0x78);
+  // roll_display roll_oled(hi2c3, 0x74);
   float pitch_val;
   pitch_oled.display_init();
   // roll_oled.display_init();
@@ -501,6 +517,33 @@ void start_pitch_oled_tx(void *argument)
     osDelay(16);
   }
   /* USER CODE END start_pitch_oled_tx */
+}
+
+/* USER CODE BEGIN Header_start_roll_oled_tx */
+/**
+* @brief Function implementing the roll_oled_tx thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_start_roll_oled_tx */
+void start_roll_oled_tx(void *argument)
+{
+  /* USER CODE BEGIN start_roll_oled_tx */
+  roll_display roll_oled(hi2c3, 0x7A);
+  float roll_val;
+  roll_oled.display_init();
+  /* Infinite loop */
+  while(1){
+
+    if (xQueueReceive(roll_queue, (void *)&roll_val, 10) == pdTRUE){
+      //do something i guess
+      // HAL_UART_Transmit(&huart2, (uint8_t *)"Hello\r\n", 8, 10000);
+      angle_display(roll_oled, roll_val);
+    }
+
+    osDelay(16);
+  }
+  /* USER CODE END start_roll_oled_tx */
 }
 
 /**

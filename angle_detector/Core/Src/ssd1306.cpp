@@ -15,7 +15,7 @@ void ssd1306_oled::write_command(uint8_t data){
 	uint8_t cmd_data[2];
 	cmd_data[0] = 0x00;
 	cmd_data[1] = data;
-	HAL_I2C_Master_Transmit(&i2c_bus, SSD1306_ADDR, cmd_data, 2, HAL_MAX_DELAY);
+	HAL_I2C_Master_Transmit(&i2c_bus, addr, cmd_data, 2, HAL_MAX_DELAY);
 }
 
 void ssd1306_oled::write_data(uint8_t *data){
@@ -24,7 +24,7 @@ void ssd1306_oled::write_data(uint8_t *data){
 	// for(int i=0;i<SSD1306_BUF_SIZE;i++){
 	// 	data_buf[i+1] = data[i];
 	// }
-	HAL_I2C_Mem_Write(&i2c_bus, SSD1306_ADDR, 0x40,1, data, SSD1306_BUF_SIZE, HAL_MAX_DELAY);
+	HAL_I2C_Mem_Write(&i2c_bus, addr, 0x40,1, data, SSD1306_BUF_SIZE, HAL_MAX_DELAY);
 	// HAL_I2C_Master_Transmit(&hi2c1, SSD1306_ADDR, data_buf, SSD1306_BUF_SIZE+1, HAL_MAX_DELAY);
 // 	while(HAL_I2C_GetState(&hi2c1) != HAL_I2C_STATE_READY);
 // 	HAL_I2C_Mem_Write_DMA(&hi2c1, SSD1306_ADDR, 0x40,1, data, SSD1306_BUF_SIZE);
@@ -50,7 +50,8 @@ void ssd1306_oled::clear_display(){
 	ssd1306_update_display();
 }
 
-ssd1306_oled::ssd1306_oled(I2C_HandleTypeDef &i2c_bus_in){
+ssd1306_oled::ssd1306_oled(I2C_HandleTypeDef &i2c_bus_in, uint16_t addr_in){
+	addr = addr_in;
 	i2c_bus = i2c_bus_in;
 	write_command(0xAE); //display off
 

@@ -1,6 +1,8 @@
 #ifndef SSD1306_H
 #define SSD1306_H
-#define SSD1306_ADDR (0x3C<<1)
+// #define SSD1306_ADDR (0x3C<<1)
+// #define SSD1306_ADDR 0x78
+// #define SSD1306_ADDR 0x74
 #define SSD1306_BUF_SIZE (64/8) * 128//8 pages of 8 bits, 128 columns
 
 #include "main.h"
@@ -23,9 +25,10 @@ struct coordinates{
 
 class ssd1306_oled{
 	uint8_t ssd1306_buf[SSD1306_BUF_SIZE];
+	uint16_t addr;
 	I2C_HandleTypeDef i2c_bus;
 	public:
-		ssd1306_oled(I2C_HandleTypeDef &i2c_bus_in);
+		ssd1306_oled(I2C_HandleTypeDef &i2c_bus_in, uint16_t addr_in);
 		void ssd1306_update_display();
 		void ssd1306_fill_buffer(uint8_t val);
 		void clear_display();
