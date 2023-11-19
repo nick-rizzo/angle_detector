@@ -28,6 +28,7 @@
 #include "queue.h"
 #include "mpu6050.h"
 #include "ssd1306.h"
+#include "hcsr04.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,6 +56,8 @@ I2C_HandleTypeDef hi2c2;
 I2C_HandleTypeDef hi2c3;
 DMA_HandleTypeDef hdma_i2c1_tx;
 
+TIM_HandleTypeDef htim7;
+
 UART_HandleTypeDef huart2;
 
 /* Definitions for gyro_rx */
@@ -62,25 +65,36 @@ osThreadId_t gyro_rxHandle;
 const osThreadAttr_t gyro_rx_attributes = {
   .name = "gyro_rx",
   .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for pitch_oled_tx */
 osThreadId_t pitch_oled_txHandle;
 const osThreadAttr_t pitch_oled_tx_attributes = {
   .name = "pitch_oled_tx",
   .stack_size = 768 * 4,
-  .priority = (osPriority_t) osPriorityHigh1,
+  .priority = (osPriority_t) osPriorityHigh,
 };
 /* Definitions for roll_oled_tx */
 osThreadId_t roll_oled_txHandle;
 const osThreadAttr_t roll_oled_tx_attributes = {
   .name = "roll_oled_tx",
   .stack_size = 768 * 4,
-  .priority = (osPriority_t) osPriorityHigh2,
+  .priority = (osPriority_t) osPriorityHigh,
+};
+/* Definitions for coll_detect */
+osThreadId_t coll_detectHandle;
+const osThreadAttr_t coll_detect_attributes = {
+  .name = "coll_detect",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityRealtime,
 };
 /* USER CODE BEGIN PV */
 static xQueueHandle pitch_queue;
 static xQueueHandle roll_queue;
+
+  GPIO_st echo = {GPIOC, 8};
+  GPIO_st trig = {GPIOC, 9};
+  hcsr04 dist_sens (&htim7, &trig, &echo);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -91,9 +105,11 @@ static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_I2C3_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM7_Init(void);
 void start_gyro_rx(void *argument);
 void start_pitch_oled_tx(void *argument);
 void start_roll_oled_tx(void *argument);
+void start_coll_det(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -137,6 +153,7 @@ int main(void)
   MX_I2C2_Init();
   MX_I2C3_Init();
   MX_USART2_UART_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
   /* USER CODE END 2 */
 
@@ -170,6 +187,9 @@ int main(void)
 
   /* creation of roll_oled_tx */
   roll_oled_txHandle = osThreadNew(start_roll_oled_tx, NULL, &roll_oled_tx_attributes);
+
+  /* creation of coll_detect */
+  coll_detectHandle = osThreadNew(start_coll_det, NULL, &coll_detect_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -351,6 +371,44 @@ static void MX_I2C3_Init(void)
 }
 
 /**
+  * @brief TIM7 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM7_Init(void)
+{
+
+  /* USER CODE BEGIN TIM7_Init 0 */
+
+  /* USER CODE END TIM7_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM7_Init 1 */
+
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 45;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 444;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* USER CODE END TIM7_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -406,12 +464,30 @@ static void MX_DMA_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 /* USER CODE BEGIN MX_GPIO_Init_1 */
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(TRIG_OUT_GPIO_Port, TRIG_OUT_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : ECHO_IN_Pin */
+  GPIO_InitStruct.Pin = ECHO_IN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(ECHO_IN_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : TRIG_OUT_Pin */
+  GPIO_InitStruct.Pin = TRIG_OUT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(TRIG_OUT_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -460,6 +536,12 @@ void angle_display(ssd1306_oled display, int8_t angle){
 
   old_angle = angle_corr;
 }
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+  // if (GPIO_Pin == 8){
+    dist_sens.echo_assert = 1;
+  // }
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_start_gyro_rx */
@@ -487,7 +569,6 @@ void start_gyro_rx(void *argument)
     if (xQueueOverwrite(roll_queue, (void *)&angle_data.x_accel) != pdTRUE){
       //Error
     }
-    osDelay(8);
   }
   /* USER CODE END 5 */
 }
@@ -507,10 +588,10 @@ void start_pitch_oled_tx(void *argument)
   pitch_oled.display_init();
 
   while(1){
+    osDelayUntil(16);
     if (xQueueReceive(pitch_queue, (void *)&pitch_val, 10) == pdTRUE){
       angle_display(pitch_oled, pitch_val);
     }
-    osDelay(16);
   }
   /* USER CODE END start_pitch_oled_tx */
 }
@@ -530,12 +611,36 @@ void start_roll_oled_tx(void *argument)
   roll_oled.display_init();
 
   while(1){
+    osDelayUntil(16);
     if (xQueueReceive(roll_queue, (void *)&roll_val, 10) == pdTRUE){
       angle_display(roll_oled, roll_val);
     }
-    osDelay(16);
   }
   /* USER CODE END start_roll_oled_tx */
+}
+
+/* USER CODE BEGIN Header_start_coll_det */
+/**
+* @brief Function implementing the coll_detect thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_start_coll_det */
+void start_coll_det(void *argument)
+{
+  /* USER CODE BEGIN start_coll_det */
+
+  /* Infinite loop */
+  while(1){
+    dist_sens.check_distance();
+    if (dist_sens.send_alert){
+      dist_sens.send_alert = 0;
+      //display alert
+      HAL_UART_Transmit(&huart2, (uint8_t *)"Collision!\n\r", 22, 10000);
+    }
+    osDelay(60);
+  }
+  /* USER CODE END start_coll_det */
 }
 
 /**
