@@ -20,15 +20,14 @@ struct GPIO_st{
 
 enum hcsr04_state{
     IDLE,
-    TRIG_ASSERT,
-    TRIG_DEASSERT,
     ECHO_RECEIVED,
-    CHECK_ECHO_AFTER_TIM
+    CHECK_ECHO_AFTER_TIM,
+    WAIT
 };
 
 class hcsr04{
     public:
-        hcsr04(TIM_HandleTypeDef *timer_in, GPIO_st *trig_pin_in, GPIO_st *echo_pin_in);
+        hcsr04();
         void check_distance();
         bool send_alert = 0;
         volatile bool echo_assert = 0;
@@ -37,8 +36,6 @@ class hcsr04{
         hcsr04_state curr_state = IDLE;
         hcsr04_state next_state = IDLE;
         TIM_HandleTypeDef *timer;
-        GPIO_st *trig_pin;
-        GPIO_st *echo_pin;
 
 };
 

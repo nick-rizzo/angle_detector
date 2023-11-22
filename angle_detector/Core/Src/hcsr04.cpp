@@ -42,72 +42,8 @@ state WAIT{
 next_state = TRIG_PULSE
 }
 */
-hcsr04::hcsr04(TIM_HandleTypeDef *timer_in, GPIO_st *trig_pin_in, GPIO_st *echo_pin_in){
-    timer = timer_in;
-    trig_pin = trig_pin_in;
-    echo_pin = echo_pin_in;
+hcsr04::hcsr04(){
+
 }
-
-void hcsr04::check_distance(){
-    static uint16_t timer_val;
-    switch(curr_state){
-        case(IDLE):{
-            next_state = TRIG_ASSERT;
-            break;
-        }
-        case(TRIG_ASSERT):{
-            // pulse assert for 10us (10 tick)
-            HAL_GPIO_WritePin(trig_pin->pin_port, trig_pin->pin_num, GPIO_PIN_SET);
-            HAL_TIM_Base_Start(timer);
-            timer_val = __HAL_TIM_GET_COUNTER(timer);
-            next_state = TRIG_DEASSERT;
-            break;
-        }
-        case(TRIG_DEASSERT):{
-               // deassert
-            if (__HAL_TIM_GET_COUNTER(timer) - timer_val >= 10){
-                HAL_GPIO_WritePin(trig_pin->pin_port, trig_pin->pin_num, GPIO_PIN_RESET);
-                HAL_TIM_Base_Stop(timer);
-                timer->Instance->CNT = 0;
-                next_state = ECHO_RECEIVED;
-            }
-            else{
-                next_state = TRIG_DEASSERT;
-            }
-            break;
-        }
-        case(ECHO_RECEIVED):{
-            // start timer for 444us (440us) = 44 ticks)
-            if(echo_assert){
-                echo_assert = 0;
-                HAL_TIM_Base_Start(timer);
-                timer_val = __HAL_TIM_GET_COUNTER(timer);
-                next_state = CHECK_ECHO_AFTER_TIM;
-            }
-            else{
-                next_state = ECHO_RECEIVED;
-            }
-            break;
-        }
-        case(CHECK_ECHO_AFTER_TIM):{
-            // at end of timer if echo is deasserted (<3inch) display alert
-           if (__HAL_TIM_GET_COUNTER(timer) - timer_val >= 444){
-                HAL_TIM_Base_Stop(timer);
-                timer->Instance->CNT = 0;
-                if (!HAL_GPIO_ReadPin(echo_pin->pin_port, echo_pin->pin_num)){
-                    send_alert = 1;
-                }
-                next_state = TRIG_ASSERT;
-            }
-            else{
-                next_state = CHECK_ECHO_AFTER_TIM;
-            }
-            break;
-        }
-    }
-
-    curr_state = next_state;
-}
-
 
 #endif
