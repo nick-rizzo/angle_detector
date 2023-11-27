@@ -41,7 +41,8 @@
 // #define MPU6050_ADDRESS (0x68<<1)
 #define MPU6050_ADDRESS 0xD0
 #define PITCH_OLED_ADDRESS 0x78
-#define ROLL_OLED_ADDRESS 0x7A
+#define ROLL_OLED_ADDRESS 0x78
+#define ALERT_OLED_ADDRESS 0x7A
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -55,6 +56,9 @@ I2C_HandleTypeDef hi2c2;
 I2C_HandleTypeDef hi2c3;
 DMA_HandleTypeDef hdma_i2c1_tx;
 
+TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim5;
+
 UART_HandleTypeDef huart2;
 
 /* Definitions for gyro_rx */
@@ -62,25 +66,34 @@ osThreadId_t gyro_rxHandle;
 const osThreadAttr_t gyro_rx_attributes = {
   .name = "gyro_rx",
   .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for pitch_oled_tx */
 osThreadId_t pitch_oled_txHandle;
 const osThreadAttr_t pitch_oled_tx_attributes = {
   .name = "pitch_oled_tx",
   .stack_size = 768 * 4,
-  .priority = (osPriority_t) osPriorityHigh1,
+  .priority = (osPriority_t) osPriorityHigh,
 };
 /* Definitions for roll_oled_tx */
 osThreadId_t roll_oled_txHandle;
 const osThreadAttr_t roll_oled_tx_attributes = {
   .name = "roll_oled_tx",
   .stack_size = 768 * 4,
-  .priority = (osPriority_t) osPriorityHigh2,
+  .priority = (osPriority_t) osPriorityHigh,
+};
+/* Definitions for coll_detect */
+osThreadId_t coll_detectHandle;
+const osThreadAttr_t coll_detect_attributes = {
+  .name = "coll_detect",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityRealtime,
 };
 /* USER CODE BEGIN PV */
 static xQueueHandle pitch_queue;
 static xQueueHandle roll_queue;
+uint16_t timer_val;
+volatile bool send_alert = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -91,9 +104,12 @@ static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_I2C3_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM5_Init(void);
+static void MX_TIM3_Init(void);
 void start_gyro_rx(void *argument);
 void start_pitch_oled_tx(void *argument);
 void start_roll_oled_tx(void *argument);
+void start_coll_det(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -137,7 +153,11 @@ int main(void)
   MX_I2C2_Init();
   MX_I2C3_Init();
   MX_USART2_UART_Init();
+  MX_TIM5_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  TIM5->CCR1 = 10;
+  HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -170,6 +190,9 @@ int main(void)
 
   /* creation of roll_oled_tx */
   roll_oled_txHandle = osThreadNew(start_roll_oled_tx, NULL, &roll_oled_tx_attributes);
+
+  /* creation of coll_detect */
+  coll_detectHandle = osThreadNew(start_coll_det, NULL, &coll_detect_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -351,6 +374,110 @@ static void MX_I2C3_Init(void)
 }
 
 /**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 90-1;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 444-1;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+
+}
+
+/**
+  * @brief TIM5 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM5_Init(void)
+{
+
+  /* USER CODE BEGIN TIM5_Init 0 */
+
+  /* USER CODE END TIM5_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM5_Init 1 */
+
+  /* USER CODE END TIM5_Init 1 */
+  htim5.Instance = TIM5;
+  htim5.Init.Prescaler = 90-1;
+  htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim5.Init.Period = 500000-1;
+  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 1;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM5_Init 2 */
+
+  /* USER CODE END TIM5_Init 2 */
+  HAL_TIM_MspPostInit(&htim5);
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -406,12 +533,34 @@ static void MX_DMA_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 /* USER CODE BEGIN MX_GPIO_Init_1 */
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(TEST_PIN_GPIO_Port, TEST_PIN_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : ECHO_IN_Pin */
+  GPIO_InitStruct.Pin = ECHO_IN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(ECHO_IN_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : TEST_PIN_Pin */
+  GPIO_InitStruct.Pin = TEST_PIN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(TEST_PIN_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -460,6 +609,12 @@ void angle_display(ssd1306_oled display, int8_t angle){
 
   old_angle = angle_corr;
 }
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+  if (GPIO_Pin == GPIO_PIN_8){
+    HAL_TIM_Base_Start_IT(&htim3);
+  }
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_start_gyro_rx */
@@ -478,6 +633,7 @@ void start_gyro_rx(void *argument)
 
   /* Infinite loop */
   while(1){
+    osDelayUntil(16);
     accel_gyro.read_gyro_data();
     raw_data = accel_gyro.get_gyro_data();
     angle_data = accel_gyro.return_angle(raw_data);
@@ -487,7 +643,6 @@ void start_gyro_rx(void *argument)
     if (xQueueOverwrite(roll_queue, (void *)&angle_data.x_accel) != pdTRUE){
       //Error
     }
-    osDelay(8);
   }
   /* USER CODE END 5 */
 }
@@ -507,10 +662,10 @@ void start_pitch_oled_tx(void *argument)
   pitch_oled.display_init();
 
   while(1){
+    // osDelayUntil(16);
     if (xQueueReceive(pitch_queue, (void *)&pitch_val, 10) == pdTRUE){
       angle_display(pitch_oled, pitch_val);
     }
-    osDelay(16);
   }
   /* USER CODE END start_pitch_oled_tx */
 }
@@ -530,12 +685,39 @@ void start_roll_oled_tx(void *argument)
   roll_oled.display_init();
 
   while(1){
+    // osDelayUntil(16);
     if (xQueueReceive(roll_queue, (void *)&roll_val, 10) == pdTRUE){
       angle_display(roll_oled, roll_val);
     }
-    osDelay(16);
   }
   /* USER CODE END start_roll_oled_tx */
+}
+
+/* USER CODE BEGIN Header_start_coll_det */
+/**
+* @brief Function implementing the coll_detect thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_start_coll_det */
+void start_coll_det(void *argument)
+{
+  /* USER CODE BEGIN start_coll_det */
+  // center_display main_oled(hi2c1, PITCH_OLED_ADDRESS);
+  // main_oled.display_init();
+
+  /* Infinite loop */
+  while(1){
+    if (send_alert){
+      //display alert
+      send_alert = 0;
+      HAL_UART_Transmit(&huart2, (uint8_t *)"Collision!\n\r", 13, 10000);
+    }
+    else{
+      osDelay(1);
+    }
+  }
+  /* USER CODE END start_coll_det */
 }
 
 /**
@@ -549,7 +731,13 @@ void start_roll_oled_tx(void *argument)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
-
+  if (htim->Instance == TIM3){
+    HAL_TIM_Base_Stop_IT(&htim3);
+    GPIO_PinState echo_state = HAL_GPIO_ReadPin(ECHO_IN_GPIO_Port, ECHO_IN_Pin);
+    if (echo_state == GPIO_PIN_RESET){
+      send_alert = 1;
+    }
+  }
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM6) {
     HAL_IncTick();

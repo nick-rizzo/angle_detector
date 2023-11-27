@@ -1,5 +1,15 @@
-#ifndef SSD1306_DRV
-#define SSD1306_DRV
+/*
+ *	===============================================================================================
+ *  File Name   :	ssd1306.cpp
+ *
+ *  Description : 	Driver for SSD1306 128x64 OLED display
+ * 					Used to display angles of accelerometer
+ *
+ *  Contributors: 	Nick Rizzo
+ *	===============================================================================================
+ */
+#ifndef SSD1306_CPP_
+#define SSD1306_CPP_
 
 #include <string.h>
 #include <stdint.h>

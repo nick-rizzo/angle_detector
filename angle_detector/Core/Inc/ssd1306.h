@@ -1,8 +1,15 @@
-#ifndef SSD1306_H
-#define SSD1306_H
-// #define SSD1306_ADDR (0x3C<<1)
-// #define SSD1306_ADDR 0x78
-// #define SSD1306_ADDR 0x74
+/*
+ *	===============================================================================================
+ *  File Name   : ssd1306.h
+ *
+ *  Description : Header file for SSD1306 128x64 OLED display
+ *
+ *  Contributors: Nick Rizzo
+ *	===============================================================================================
+ */
+#ifndef SSD1306_H_
+#define SSD1306_H_
+
 #define SSD1306_BUF_SIZE (64/8) * 128//8 pages of 8 bits, 128 columns
 
 #include "main.h"
