@@ -28,7 +28,6 @@
 #include "queue.h"
 #include "mpu6050.h"
 #include "ssd1306.h"
-#include "hcsr04.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,7 +41,8 @@
 // #define MPU6050_ADDRESS (0x68<<1)
 #define MPU6050_ADDRESS 0xD0
 #define PITCH_OLED_ADDRESS 0x78
-#define ROLL_OLED_ADDRESS 0x7A
+#define ROLL_OLED_ADDRESS 0x78
+#define ALERT_OLED_ADDRESS 0x7A
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -93,10 +93,7 @@ const osThreadAttr_t coll_detect_attributes = {
 static xQueueHandle pitch_queue;
 static xQueueHandle roll_queue;
 uint16_t timer_val;
-  // GPIO_st echo = {GPIOC, GPIO_PIN_8};
-  // GPIO_st trig = {GPIOC, GPIO_PIN_9};
-  hcsr04 dist_sens;
-  volatile bool send_alert = 0;
+volatile bool send_alert = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -706,6 +703,8 @@ void start_roll_oled_tx(void *argument)
 void start_coll_det(void *argument)
 {
   /* USER CODE BEGIN start_coll_det */
+  // center_display main_oled(hi2c1, PITCH_OLED_ADDRESS);
+  // main_oled.display_init();
 
   /* Infinite loop */
   while(1){
@@ -713,7 +712,6 @@ void start_coll_det(void *argument)
       //display alert
       send_alert = 0;
       HAL_UART_Transmit(&huart2, (uint8_t *)"Collision!\n\r", 13, 10000);
-      // dist_sens.send_alert = 0;
     }
     else{
       osDelay(1);
@@ -737,7 +735,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_TIM_Base_Stop_IT(&htim3);
     GPIO_PinState echo_state = HAL_GPIO_ReadPin(ECHO_IN_GPIO_Port, ECHO_IN_Pin);
     if (echo_state == GPIO_PIN_RESET){
-      // dist_sens.send_alert = 1;
       send_alert = 1;
     }
   }
