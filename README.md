@@ -19,6 +19,7 @@ This repo is made to work with STM32F446RE MCU using C++.
 
 ### Planned Features
 - Add the ability to use multiple distance sensors
+- Remove depedency on STM HAL
 
 
 
