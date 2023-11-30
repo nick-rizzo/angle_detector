@@ -38,6 +38,7 @@ class ssd1306_oled{
 		ssd1306_oled(I2C_HandleTypeDef &i2c_bus_in, uint16_t addr_in);
 		void ssd1306_update_display();
 		void ssd1306_fill_buffer(uint8_t val);
+		void set_display(const uint8_t screen_contents[SSD1306_BUF_SIZE]);
 		void clear_display();
 		void place_pixel(uint8_t x, uint8_t y);
 		void clear_pixel(uint8_t x, uint8_t y);
@@ -53,8 +54,8 @@ class ssd1306_oled{
 		void clear_triangle(coordinates p1, coordinates p2, coordinates p3);
 		void insert_shape (int x, int y, shapes shape);
 		virtual void display_init();
-		void insert_selector(int cur_select);
-		void move_selector(int cur_select, int new_select);
+		// void insert_selector(int cur_select);
+		// void move_selector(int cur_select, int new_select);
 
 	private:
 		void write_command(uint8_t data);
@@ -71,6 +72,12 @@ class roll_display : public ssd1306_oled{
 };
 
 class pitch_display : public ssd1306_oled{
+	using ssd1306_oled::ssd1306_oled;
+	public:
+		void display_init();
+};
+
+class center_display : public ssd1306_oled{
 	using ssd1306_oled::ssd1306_oled;
 	public:
 		void display_init();

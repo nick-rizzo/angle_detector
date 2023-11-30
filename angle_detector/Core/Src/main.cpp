@@ -86,7 +86,7 @@ const osThreadAttr_t roll_oled_tx_attributes = {
 osThreadId_t coll_detectHandle;
 const osThreadAttr_t coll_detect_attributes = {
   .name = "coll_detect",
-  .stack_size = 128 * 4,
+  .stack_size = 768 * 4,
   .priority = (osPriority_t) osPriorityRealtime,
 };
 /* USER CODE BEGIN PV */
@@ -703,8 +703,8 @@ void start_roll_oled_tx(void *argument)
 void start_coll_det(void *argument)
 {
   /* USER CODE BEGIN start_coll_det */
-  // center_display main_oled(hi2c1, PITCH_OLED_ADDRESS);
-  // main_oled.display_init();
+  center_display main_oled(hi2c2, ALERT_OLED_ADDRESS);
+  main_oled.display_init();
 
   /* Infinite loop */
   while(1){
@@ -712,6 +712,7 @@ void start_coll_det(void *argument)
       //display alert
       send_alert = 0;
       HAL_UART_Transmit(&huart2, (uint8_t *)"Collision!\n\r", 13, 10000);
+      // main_oled.display_warning();
     }
     else{
       osDelay(1);

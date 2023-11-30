@@ -252,6 +252,10 @@ void ssd1306_oled::insert_shape (int x, int y, shapes shape){
 	}
 }
 
+void ssd1306_oled::set_display(const uint8_t screen_contents[SSD1306_BUF_SIZE]){
+	memcpy(ssd1306_buf, screen_contents, SSD1306_BUF_SIZE);
+}
+
 void ssd1306_oled::display_init(){
 	// initial display screen
 	draw_box(128, 3, 0, LINE_Y_COORD);
@@ -273,6 +277,12 @@ void roll_display::display_init(){
 	ssd1306_update_display();
 }
 
+//////////////////////////////////////////////////////////////////////////////////////
+
+void center_display::display_init(){
+	set_display(warning_sign);
+	ssd1306_update_display();
+}
 #endif
 
 
