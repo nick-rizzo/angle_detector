@@ -253,7 +253,14 @@ void ssd1306_oled::insert_shape (int x, int y, shapes shape){
 }
 
 void ssd1306_oled::set_display(const uint8_t screen_contents[SSD1306_BUF_SIZE]){
-	memcpy(ssd1306_buf, screen_contents, SSD1306_BUF_SIZE);
+	for(int i=0; i<DISPLAY_HEIGHT; i++){
+		for (int j=0;j<DISPLAY_WIDTH;j++){
+			uint8_t pixel = screen_contents[(j/8)+(16*i)]>>(7-(j%8)) & 0x01;
+			if(pixel == 1){
+				place_pixel(j,i);
+			}
+		}
+	}
 }
 
 void ssd1306_oled::display_init(){

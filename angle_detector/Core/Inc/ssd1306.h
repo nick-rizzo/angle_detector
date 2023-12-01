@@ -44,6 +44,7 @@ class ssd1306_oled{
 		void clear_pixel(uint8_t x, uint8_t y);
 		void invert_pixel(uint8_t x, uint8_t y);
 		uint8_t get_pixel(uint8_t x, uint8_t y);
+		uint8_t get_pixel_from_arr(const uint8_t arr[SSD1306_BUF_SIZE], uint8_t x, uint8_t y);
 		void place_char(char c, int x, int y);
 		void write_page(int page_num, char* line);
 		void draw_box(int width, int height, int x, int y);
