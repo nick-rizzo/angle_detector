@@ -72,14 +72,14 @@ const osThreadAttr_t gyro_rx_attributes = {
 osThreadId_t pitch_oled_txHandle;
 const osThreadAttr_t pitch_oled_tx_attributes = {
   .name = "pitch_oled_tx",
-  .stack_size = 768 * 4,
+  .stack_size = 892 * 4,
   .priority = (osPriority_t) osPriorityHigh,
 };
 /* Definitions for roll_oled_tx */
 osThreadId_t roll_oled_txHandle;
 const osThreadAttr_t roll_oled_tx_attributes = {
   .name = "roll_oled_tx",
-  .stack_size = 768 * 4,
+  .stack_size = 892 * 4,
   .priority = (osPriority_t) osPriorityHigh,
 };
 /* Definitions for coll_detect */
@@ -581,12 +581,8 @@ void angle_display(ssd1306_oled display, int8_t angle){
   }
   //clear old artifacts
   if (abs(angle_corr) < abs(old_angle)){
-    display.clear_triangle({LINE_X_COORD,(LINE_Y_COORD)},
-                              {(DISPLAY_WIDTH), (uint8_t)(LINE_Y_COORD-angle_corr)},
-                              {(DISPLAY_WIDTH), (uint8_t)(LINE_Y_COORD-old_angle)});
-    display.clear_triangle({DISPLAY_WIDTH-LINE_X_COORD, (LINE_Y_COORD+1)},
-                              {0, (uint8_t)(LINE_Y_COORD+1+angle_corr)},
-                              {0, (uint8_t)(LINE_Y_COORD+1+old_angle)});
+    display.clear_box(63, 31, LINE_X_COORD, 8);
+    display.clear_box(63, 31, 0, (uint8_t)(LINE_Y_COORD+1));
   }
   //draw new pixel
   display.draw_triangle({LINE_X_COORD,(LINE_Y_COORD)},
