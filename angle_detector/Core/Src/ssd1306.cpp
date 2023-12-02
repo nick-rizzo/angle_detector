@@ -287,6 +287,11 @@ void roll_display::display_init(){
 //////////////////////////////////////////////////////////////////////////////////////
 
 void center_display::display_init(){
+	// set_display(warning_sign);
+	// ssd1306_update_display();
+}
+
+void center_display::display_warning(){
 	set_display(warning_sign);
 	ssd1306_update_display();
 }

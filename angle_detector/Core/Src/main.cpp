@@ -711,8 +711,10 @@ void start_coll_det(void *argument)
     if (send_alert){
       //display alert
       send_alert = 0;
-      HAL_UART_Transmit(&huart2, (uint8_t *)"Collision!\n\r", 13, 10000);
-      // main_oled.display_warning();
+        main_oled.display_warning();
+        osDelay(200);
+        main_oled.clear_display();
+        osDelay(200);
     }
     else{
       osDelay(1);

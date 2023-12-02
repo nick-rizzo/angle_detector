@@ -82,6 +82,7 @@ class center_display : public ssd1306_oled{
 	using ssd1306_oled::ssd1306_oled;
 	public:
 		void display_init();
+		void display_warning();
 };
 
 
